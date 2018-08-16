@@ -144,7 +144,7 @@ export default {
 #episode-browser {
     height: calc(100vh - 220px);
     width: 100vw;
-    overflow: scroll;
+    overflow: auto;
 }
 
 .season-list {
@@ -183,7 +183,7 @@ export default {
 }
 
 .list-group {
-    overflow: scroll;
+    overflow: auto;
 }
 
 h2 {
@@ -236,7 +236,7 @@ h2 {
 }
 
 .infos {
-    overflow: scroll;
+    overflow: auto;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
@@ -271,6 +271,6 @@ h2 {
 
 .synopsis {
     padding-top: 10px;
-    overflow: scroll;
+    overflow: auto;
 }
 </style>
