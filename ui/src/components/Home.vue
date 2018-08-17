@@ -138,6 +138,36 @@ const generateSeasons = () => {
     }
     return seasons
 }
+
+const generateShows = () => {
+    let shows = []
+    let genres = [
+        "drama",
+        "science fiction",
+        "action",
+        "horror",
+        "fantasy",
+        "documentary"
+    ]
+    for (let ii = 0; ii < 50; ii++) {
+        shows.push(
+            new Show({
+                uuid: ii,
+                name: "TV Show",
+                year: "20" + pad(Math.floor(Math.random() * 20)),
+                rating: Math.floor(Math.random() * 10),
+                img: `https://source.unsplash.com/random/3${Math.floor(Math.random() * 99)}x6${Math.floor(Math.random() * 99)}`,
+                synopsis: "Suits follows college drop-out Mike Ross, who accidentally lands a job with one of New York's best legal closers, Harvey Specter. They soon become a winning team with Mike's raw talent and photographic memory, and Mike soon reminds Harvey of why he went into the field of law in the first place.",
+                favourite: Math.random() < 0.5,
+                genre: genres[Math.floor(Math.random() * (genres.length - 1))],
+                status: Math.random() < 0.5 ? "Returning Series" : "Cancelled",
+                runtime: `${Math.floor(Math.random() * 100)} min`,
+                seasons: generateSeasons(),
+            })
+        )
+    }
+    return shows
+}
 </script>
 
 <style scoped>
