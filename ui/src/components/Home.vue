@@ -5,38 +5,42 @@
                 <Nav/>
             </b-col>
         </b-row>
-        <b-row id="show-browser" :visible="active == null">
+        <b-row id="show-browser"
+               :visible="active == null">
             <b-col>
                 <ul>
-                    <li v-for="show in shows" :key="show.uuid"
+                    <li v-for="show in shows"
+                        :key="show.uuid"
                         class="show"
                         @click="showDescription(show.uuid)">
-                        <Tile   :name="show.name"
-                                :year="show.year"
-                                :seasons="show.seasons"
-                                :rating="show.rating"
-                                :img="show.img"
-                                :favourite="show.favourite"
-                                @liked="toggleLiked(show.uuid)"
+                        <Tile :name="show.name"
+                              :year="show.year"
+                              :seasons="show.seasons"
+                              :rating="show.rating"
+                              :img="show.img"
+                              :favourite="show.favourite"
+                              @liked="toggleLiked(show.uuid)"
                         />
                     </li>
                 </ul>
             </b-col>
         </b-row>
-        <div class="detail-view" :visible="active != null">
-            <div class="close" @click="closeDescription">
+        <div class="detail-view"
+             :visible="active != null">
+            <div class="close"
+                 @click="closeDescription">
                 <icon name="times" scale="2"></icon>
             </div>
             <Detail v-if="active != null"
-                :name="active.name"
-                :year="active.year"
-                :synopsis="active.synopsis"
-                :runtime="active.runtime"
-                :status="active.status"
-                :genre="active.genre"
-                :rating="active.rating"
-                :cover="active.img"
-                :seasons="active.seasons"
+                    :name="active.name"
+                    :year="active.year"
+                    :synopsis="active.synopsis"
+                    :runtime="active.runtime"
+                    :status="active.status"
+                    :genre="active.genre"
+                    :rating="active.rating"
+                    :cover="active.img"
+                    :seasons="active.seasons"
             />
         </div>
     </b-container>
