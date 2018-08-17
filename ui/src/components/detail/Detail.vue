@@ -54,15 +54,25 @@
             </div>
             <div class="episode-description">
                 <h2>{{episode.name}}</h2>
-                <div class="number">
-                    Season {{activeSeason+1}}, Episode {{activeEpisode + 1}}
-                </div>
-                <div class="date">
-                    Aired Date: {{episode.releaseDate.toLocaleString()}}
+                <div class="info">
+                    <div class="number">
+                        Season {{activeSeason+1}}, Episode {{activeEpisode + 1}}
+                    </div>
+                    <div class="date">
+                        Aired Date: {{episode.releaseDate.toLocaleString()}}
+                    </div>
                 </div>
                 <p class="episode-synopsis">
                     {{episode.synopsis}}
                 </p>
+                <div class="controls">
+                    <b-button class="watch"
+                              variant="primary"
+                              @click="watch"
+                    >
+                        Watch Now
+                    </b-button>
+                </div>
             </div>
         </section>
     </div>
@@ -114,6 +124,9 @@ export default {
         },
         isActiveEpisode(ii) {
             return this.activeEpisode === ii
+        },
+        watch() {
+            alert(`Watching ${this.name} Season ${this.activeSeason}: ${this.episode.name}...`)
         }
     }
 }
@@ -172,20 +185,38 @@ h2 {
 }
 
 .episode-description {
-    max-width: 33vw;
+    display: flex;
+    flex-direction: column;
+    width: 35vw;
     color: white;
 }
 
+.episode-description .info {
+    white-space: nowrap;
+}
+
 .episode-synopsis {
+    /* TODO Is there a more responsive way of specifying height? */
+    height: calc(100vh - 387px);
     margin-top: 5px;
     padding-right: 5px;
-    height: calc(100% - 90px);
     overflow-y: auto;
+    text-align: justify;
+}
+
+.controls {
+    width: 100%;
+}
+
+.watch {
+    float: right;
 }
 
 .scrollable {
+    /* TODO Is there a more responsive way of specifying height? */
     height: calc(100% - 40px);
     overflow-y: auto;
+    padding-right: 5px;
 }
 
 .cover-img {
@@ -272,4 +303,5 @@ h2 {
     box-shadow: 0;
     border-left: 1px solid  yellow;
 }
+
 </style>
