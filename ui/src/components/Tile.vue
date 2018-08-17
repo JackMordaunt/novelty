@@ -89,6 +89,7 @@ export default {
     color: white;
     background-color: #0E0E17;
     overflow: hidden;
+    border: 2px solid black;
 }
 
 .cover > img {
