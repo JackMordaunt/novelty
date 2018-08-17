@@ -19,12 +19,6 @@ html, body {
     margin: 0;
 }
 
-body > div {
-    height: 100vh;
-    overflow: scroll;
-    -webkit-overflow-scrolling: touch;
-}
-
 #app {
     font-family: "Avenir", Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -33,6 +27,9 @@ body > div {
     min-width: 100%;
     min-height: 100%;
     background-color: black;
+    height: 100vh;
+    overflow: scroll;
+    -webkit-overflow-scrolling: touch;
 }
 </style>
 
