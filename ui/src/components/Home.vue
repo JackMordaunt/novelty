@@ -41,6 +41,7 @@
                     :rating="active.rating"
                     :cover="active.img"
                     :seasons="active.seasons"
+                    @watch-now="watch(active)"
             />
         </div>
     </b-container>
@@ -51,7 +52,7 @@ import Vue from "vue"
 import Nav from "./Nav"
 import Tile from "./Tile"
 import Detail from "./detail/Detail"
-import Show from "../models/Show"
+import axios from "axios"
 
 export default {
     data() {
@@ -80,6 +81,12 @@ export default {
         },
         closeDescription() {
             this.active = null
+        },
+        watch(show) {
+            axios.post("http://localhost:8080/player/watch", show)
+                .catch(err => {
+                    alert(`attempting to watch ${show.name}: ${err}`)
+                })
         }
     },
     components: {
@@ -99,6 +106,8 @@ const pad = number => {
 
 import Season from "../models/Season"
 import Episode from "../models/Episode"
+import Show from "../models/Show"
+
 
 const generateSeasons = () => {
   let seasons = []

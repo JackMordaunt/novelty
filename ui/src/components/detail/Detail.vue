@@ -126,7 +126,7 @@ export default {
             return this.activeEpisode === ii
         },
         watch() {
-            alert(`Watching ${this.name} Season ${this.activeSeason}: ${this.episode.name}...`)
+            this.$emit("watch-now")
         }
     }
 }
