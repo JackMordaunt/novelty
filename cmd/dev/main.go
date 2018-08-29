@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,21 +21,16 @@ func main() {
 		uiURL    string
 	)
 	flag.BoolVar(&headless, "headless", false, "Run without the UI.")
-	flag.StringVar(&uiURL, "ui", "http:/127.0.0.1:8080", "URL that serves the web UI.")
+	flag.StringVar(&uiURL, "ui", "http://127.0.0.1:8080", "URL that serves the web UI.")
 	flag.Parse()
 	work := &sync.WaitGroup{}
 	work.Add(1)
 	go func() {
 		defer work.Done()
-
-		// What api do you want?
-		// n := novelty.NewEngine()
-		// show := r.Body
-		// resource := n.Open(show)
-		//
 		n := &novelty.Engine{}
 		r := websocket.NewRouter(nil)
 		r.Handle("open-show", func(s websocket.Sender, p websocket.Payload) {
+			fmt.Printf("open-show handler\n")
 			type Cmd struct {
 				Name string `json:"name"`
 				URI  string `json:"uri"`
@@ -48,12 +44,27 @@ func main() {
 			if err != nil {
 				log.Fatalf("%v", err)
 			}
+			fmt.Printf("torrent opened! :) \n")
 			// Store the resource in some object that exposes it via http.
-			http.Handle(fmt.Sprintf("/%s", show.Name), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Need filename of resource.
-				w.Header().Set("Content-Disposition", "attachment; filename=\""+show.Name+"\"")
-				http.ServeContent(w, r, "", time.Now(), resource)
-			}))
+			// Would want to cleanup this server once the torrent is cancelled.
+			go func() {
+				s := &http.Server{
+					Addr: "127.0.0.1:4000",
+					Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if !strings.Contains(r.URL.String(), show.Name) {
+							fmt.Printf("bad url\n")
+							return
+						}
+						fmt.Printf("stream endpoint reached\n")
+						// Need filename of resource.
+						w.Header().Set("Content-Disposition", "attachment; filename=\""+show.Name+"\"")
+						http.ServeContent(w, r, "", time.Now(), resource)
+					}),
+				}
+				if err := s.ListenAndServe(); err != nil {
+					panic(err)
+				}
+			}()
 			type Response struct {
 				StreamURL string `json:"stream_url"`
 			}
