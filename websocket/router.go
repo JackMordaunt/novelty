@@ -36,7 +36,7 @@ func NewRouter(upgrader *websocket.Upgrader) *Router {
 
 // Handle registers a handler for a given message name.
 func (mux *Router) Handle(name string, handler Handler) {
-	if _, ok := mux.rules[name]; !ok {
+	if _, ok := mux.rules[name]; ok {
 		panic(fmt.Sprintf("attempted to register a second handler for %q: handler already registered", name))
 	}
 	mux.rules[name] = handler
