@@ -1,89 +1,100 @@
 package websocket
 
 import (
-	"log"
-	"net/http"
-	"time"
+	"encoding/json"
+	"sync"
 
-	"github.com/anacrolix/torrent"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 )
 
-// Client is the client side of a websocket interaction.
+// FindHandler maps the message name to a handler for that message.
+type FindHandler func(string) (Handler, bool)
+
+// ErrorHandler receives any errors that occur during message reading or writing.
+type ErrorHandler func(error)
+
+// Message contains the name and payload for a websocket message.
+type Message struct {
+	Name string          `json:"name"`
+	Data json.RawMessage `json:"data"`
+}
+
+// Client manages the websocket connection between the server and a user.
 type Client struct {
-	socket  *websocket.Conn
-	updates chan torrent.TorrentStats
+	socket       *websocket.Conn
+	send         chan Message
+	done         chan struct{}
+	findHandler  FindHandler
+	errorHandler ErrorHandler
+	once         sync.Once
 }
 
-// Close the client connection.
-func (c *Client) Close() {
-	c.socket.Close()
-	close(c.updates)
+// NewClient returns an initialised Client.
+func NewClient(socket *websocket.Conn, finder FindHandler, onErr ErrorHandler) *Client {
+	return &Client{
+		socket:       socket,
+		send:         make(chan Message),
+		done:         make(chan struct{}),
+		findHandler:  finder,
+		errorHandler: onErr,
+		once:         sync.Once{},
+	}
 }
 
-func (c *Client) loop() {
-	for update := range c.updates {
-		if err := c.socket.WriteJSON(update); err != nil {
-			log.Printf("[websocket client] writing: %v", err)
+// Run starts the pumps and blocks until the connection errors out.
+func (c *Client) Run() {
+	defer c.socket.Close()
+	go c.readPump()
+	go c.writePump()
+	<-c.done
+}
+
+// Send a message to the client.
+func (c *Client) Send(msg Message) {
+	c.send <- msg
+}
+
+// readPump reads messages from the client socket as they come in.
+func (c *Client) readPump() {
+	var msg Message
+	for {
+		if err := c.socket.ReadJSON(&msg); err != nil {
+			c.error(errors.Wrap(err, "reading message"))
+			break
+		}
+		if handler, ok := c.findHandler(msg.Name); ok {
+			handler(c, Payload{Raw: msg.Data})
+		}
+	}
+}
+
+// writePump writes messages to the client socket as they come in.
+func (c *Client) writePump() {
+	for msg := range c.send {
+		err := c.socket.WriteJSON(msg)
+		if err != nil {
+			c.error(errors.Wrap(err, "writing message"))
 			break
 		}
 	}
-	if err := c.socket.Close(); err != nil {
-		log.Printf("[websocket client] closing: %v", err)
-	}
 }
 
-// Torrent is a handle that provides access to a torrent's information via
-// ticked updates.
-type Torrent struct {
-	Handle  *torrent.Torrent
-	clients map[*Client]bool
-	join    chan *Client
-	leave   chan *Client
+func (c *Client) error(err error) {
+	if c.errorHandler != nil {
+		c.errorHandler(err)
+	}
+	c.once.Do(func() {
+		close(c.done)
+	})
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+// Payload provides a convenient way to bind json to a value.
+type Payload struct {
+	Raw []byte
 }
 
-func (t *Torrent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	socket, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("[Torrent] ServeHTTP: %v", err)
-		return
-	}
-	client := &Client{
-		socket:  socket,
-		updates: make(chan torrent.TorrentStats),
-	}
-	t.join <- client
-	defer func() { t.leave <- client }()
-	client.loop()
-}
-
-func (t *Torrent) loop() {
-	if t.clients == nil {
-		t.clients = make(map[*Client]bool)
-	}
-	if t.join == nil {
-		t.join = make(chan *Client)
-	}
-	if t.leave == nil {
-		t.leave = make(chan *Client)
-	}
-	update := time.NewTicker(time.Second / 60)
-	for {
-		select {
-		case client := <-t.join:
-			t.clients[client] = true
-		case client := <-t.leave:
-			delete(t.clients, client)
-			client.Close()
-		case <-update.C:
-			for client := range t.clients {
-				client.updates <- t.Handle.Stats()
-			}
-		}
-	}
+// Bind json data to value.
+func (p Payload) Bind(v interface{}) error {
+	return json.Unmarshal(p.Raw, v)
 }

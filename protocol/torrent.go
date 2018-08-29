@@ -1,4 +1,4 @@
-package novelty
+package protocol
 
 import (
 	"compress/gzip"
@@ -19,6 +19,28 @@ import (
 	"github.com/pkg/errors"
 )
 
+// // Torrent fetches a resource via the torrent protocol.
+// type Torrent struct {
+// 	*torrent.Torrent
+// }
+
+// // Open starts the torrent download and returns a resource handle.
+// func (t Torrent) Open() (io.ReadSeeker, error) {
+// 	return nil, nil
+// }
+
+// // Close stops the torrent download and cleans up resources.
+// func (t Torrent) Close() error {
+// 	return nil
+// }
+
+// // Status returns the current status of the download.
+// func (t Torrent) Status() novelty.Status {
+// 	return novelty.Status{
+// 		nil,
+// 	}
+// }
+
 const clearScreen = "\033[H\033[2J"
 
 const torrentBlockListURL = "http://john.bitsurge.net/public/biglist.p2p.gz"
@@ -33,15 +55,6 @@ type ClientError struct {
 
 func (clientError ClientError) Error() string {
 	return fmt.Sprintf("Error %s: %s\n", clientError.Type, clientError.Origin)
-}
-
-// Client manages the torrent downloading.
-type Client struct {
-	Client   *torrent.Client
-	Torrent  *torrent.Torrent
-	Progress int64
-	Uploaded int64
-	Config   ClientConfig
 }
 
 // ClientConfig specifies the behaviour of a client.
@@ -65,9 +78,19 @@ func NewClientConfig() ClientConfig {
 	}
 }
 
+// Client manages the torrent downloading.
+type Client struct {
+	Client   *torrent.Client
+	Torrent  *torrent.Torrent
+	Progress int64
+	Uploaded int64
+	Config   ClientConfig
+	handle   SeekableContent
+}
+
 // NewClient creates a new torrent client based on a magnet or a torrent file.
 // If the torrent file is on http, we try downloading it.
-func NewClient(cfg ClientConfig) (client Client, err error) {
+func NewClient(cfg ClientConfig) (client *Client, err error) {
 	var t *torrent.Torrent
 	var c *torrent.Client
 	client.Config = cfg
@@ -116,8 +139,49 @@ func NewClient(cfg ClientConfig) (client Client, err error) {
 		target := client.getLargestFile()
 		target.SetPriority(torrent.PiecePriorityHigh)
 		target.Torrent().DownloadPieces(0, int(t.NumPieces()/100*5))
+		entry, err := NewFileReader(target)
+		if err != nil {
+			panic(errors.Wrap(err, "creating SeekableContent handle"))
+		}
+		client.handle = entry
 	}()
 	return client, err
+}
+
+// Close cleans up the connections.
+func (c *Client) Close() (err error) {
+	c.Torrent.Drop()
+	c.Client.Close()
+	if c.handle != nil {
+		if e := c.handle.Close(); e != nil {
+			err = e
+		}
+	}
+	return nil
+}
+
+func (c *Client) Read(p []byte) (int, error) {
+	if c.handle == nil {
+		return 0, fmt.Errorf("resource not ready to read")
+	}
+	return c.handle.Read(p)
+}
+
+// Seek the resource.
+func (c *Client) Seek(offset int64, whence int) (int64, error) {
+	if c.handle == nil {
+		return 0, fmt.Errorf("resource not ready to seek")
+	}
+	return c.handle.Seek(offset, whence)
+}
+
+// Status populates the status object with torrent stats.
+func (c *Client) Status(s *Status) {
+	if s == nil {
+		return
+	}
+	tstats := c.Torrent.Stats()
+	s.TorrentStats = &tstats
 }
 
 // ReadyForPlayback checks if the torrent is ready for playback or not.
@@ -141,45 +205,6 @@ func (c Client) GetFile(w http.ResponseWriter, r *http.Request) {
 	}()
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+c.Torrent.Info().Name+"\"")
 	http.ServeContent(w, r, target.DisplayPath(), time.Now(), entry)
-}
-
-// Close cleans up the connections.
-func (c *Client) Close() {
-	c.Torrent.Drop()
-	c.Client.Close()
-}
-
-// Download and add the blocklist.
-func loadBlocklist() (iplist.Ranger, error) {
-	blocklistPath := filepath.Join(os.TempDir(), "novelty-blocklist.gz")
-	if _, err := os.Stat(blocklistPath); os.IsNotExist(err) {
-		if err := downloadBlockList(blocklistPath); err != nil {
-			return nil, errors.Wrap(err, "downloading blocklist")
-		}
-	}
-	blocklistReader, err := os.Open(blocklistPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "opening blocklist")
-	}
-	gzipReader, err := gzip.NewReader(blocklistReader)
-	if err != nil {
-		return nil, errors.Wrap(err, "extracting blocklist")
-	}
-	blocklist, err := iplist.NewFromReader(gzipReader)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading blocklist")
-	}
-	return blocklist, nil
-}
-
-func downloadBlockList(blocklistPath string) (err error) {
-	log.Printf("Downloading blocklist")
-	fileName, err := downloadFile(torrentBlockListURL)
-	if err != nil {
-		log.Printf("Error downloading blocklist: %s\n", err)
-		return
-	}
-	return os.Rename(fileName, blocklistPath)
 }
 
 // Render outputs the command line interface for the client.
@@ -259,4 +284,70 @@ func downloadFile(URL string) (fileName string, err error) {
 	}()
 	_, err = io.Copy(file, response.Body)
 	return file.Name(), err
+}
+
+// Download and add the blocklist.
+func loadBlocklist() (iplist.Ranger, error) {
+	blocklistPath := filepath.Join(os.TempDir(), "novelty-blocklist.gz")
+	if _, err := os.Stat(blocklistPath); os.IsNotExist(err) {
+		if err := downloadBlockList(blocklistPath); err != nil {
+			return nil, errors.Wrap(err, "downloading blocklist")
+		}
+	}
+	blocklistReader, err := os.Open(blocklistPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "opening blocklist")
+	}
+	gzipReader, err := gzip.NewReader(blocklistReader)
+	if err != nil {
+		return nil, errors.Wrap(err, "extracting blocklist")
+	}
+	blocklist, err := iplist.NewFromReader(gzipReader)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading blocklist")
+	}
+	return blocklist, nil
+}
+
+func downloadBlockList(blocklistPath string) (err error) {
+	log.Printf("Downloading blocklist")
+	fileName, err := downloadFile(torrentBlockListURL)
+	if err != nil {
+		log.Printf("Error downloading blocklist: %s\n", err)
+		return
+	}
+	return os.Rename(fileName, blocklistPath)
+}
+
+// SeekableContent describes an io.ReadSeeker that can be closed as well.
+type SeekableContent interface {
+	io.ReadSeeker
+	io.Closer
+}
+
+// FileEntry helps reading a torrent file.
+type FileEntry struct {
+	*torrent.File
+	torrent.Reader
+}
+
+// Seek seeks to the correct file position, paying attention to the offset.
+func (f FileEntry) Seek(offset int64, whence int) (int64, error) {
+	return f.Reader.Seek(offset+f.File.Offset(), whence)
+}
+
+// NewFileReader sets up a torrent file for streaming reading.
+func NewFileReader(f *torrent.File) (SeekableContent, error) {
+	torrent := f.Torrent()
+	reader := torrent.NewReader()
+
+	// We read ahead 1% of the file continuously.
+	reader.SetReadahead(f.Length() / 100)
+	reader.SetResponsive()
+	_, err := reader.Seek(f.Offset(), os.SEEK_SET)
+
+	return &FileEntry{
+		File:   f,
+		Reader: reader,
+	}, err
 }
