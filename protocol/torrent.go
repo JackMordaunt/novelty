@@ -91,8 +91,10 @@ type Client struct {
 // NewClient creates a new torrent client based on a magnet or a torrent file.
 // If the torrent file is on http, we try downloading it.
 func NewClient(cfg ClientConfig) (client *Client, err error) {
+	defer fmt.Printf("NewClient returned, torrent client created\n")
 	var t *torrent.Torrent
 	var c *torrent.Client
+	client = &Client{}
 	client.Config = cfg
 	client.Client = c
 
@@ -101,6 +103,7 @@ func NewClient(cfg ClientConfig) (client *Client, err error) {
 		return client, err
 	}
 
+	fmt.Printf("blocklist downloaded\n")
 	torrentConfig := torrent.NewDefaultClientConfig()
 	torrentConfig.DataDir = os.TempDir()
 	torrentConfig.NoUpload = !cfg.Seed
