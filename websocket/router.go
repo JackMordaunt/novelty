@@ -55,7 +55,7 @@ func (mux *Router) FindHandler(name string) (Handler, bool) {
 // NOTE: This would be a good candidate for telementry to analyse connection
 // failures.
 func (mux *Router) ErrorHandler(err error) {
-	log.Printf("[websocket] error: %v", err)
+	log.Printf("[websocket] error: %v; connection closed", err)
 }
 
 func (mux *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
