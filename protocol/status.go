@@ -1,9 +1,10 @@
 package protocol
 
-import "github.com/anacrolix/torrent"
-
 // Status containst he status information of a given resource.
 // This object is effectively a union type which covers all supported protocols.
 type Status struct {
-	*torrent.TorrentStats
+	Progress   int64  `json:"progress"`
+	Uploaded   int64  `json:"uploaded"`
+	Throughput string `json:"throughput"`
+	Size       int64  `json:"size"`
 }

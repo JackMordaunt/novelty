@@ -11,35 +11,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/iplist"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 )
-
-// // Torrent fetches a resource via the torrent protocol.
-// type Torrent struct {
-// 	*torrent.Torrent
-// }
-
-// // Open starts the torrent download and returns a resource handle.
-// func (t Torrent) Open() (io.ReadSeeker, error) {
-// 	return nil, nil
-// }
-
-// // Close stops the torrent download and cleans up resources.
-// func (t Torrent) Close() error {
-// 	return nil
-// }
-
-// // Status returns the current status of the download.
-// func (t Torrent) Status() novelty.Status {
-// 	return novelty.Status{
-// 		nil,
-// 	}
-// }
 
 const clearScreen = "\033[H\033[2J"
 
@@ -138,7 +115,7 @@ func NewClient(cfg ClientConfig) (client *Client, err error) {
 	go func() {
 		<-t.GotInfo()
 		t.DownloadAll()
-		// Prioritize first 5% of the file.
+		// FIXME: How to priorize first 5% of the largest file, not the whole torrent.
 		target := client.getLargestFile()
 		target.SetPriority(torrent.PiecePriorityHigh)
 		target.Torrent().DownloadPieces(0, int(t.NumPieces()/100*5))
@@ -183,31 +160,29 @@ func (c *Client) Status(s *Status) {
 	if s == nil {
 		return
 	}
-	tstats := c.Torrent.Stats()
-	s.TorrentStats = &tstats
+	if c.Torrent.Info() == nil {
+		return
+	}
+
+	t := c.Torrent
+	currentProgress := t.BytesCompleted()
+	downloadSpeed := humanize.Bytes(uint64(currentProgress-c.Progress)) + "/s"
+	stats := t.Stats()
+	uploadProgress := (&stats).BytesWrittenData.Int64() - c.Uploaded
+
+	s.Progress = currentProgress
+	s.Uploaded = uploadProgress
+	s.Throughput = downloadSpeed
+	s.Size = t.Info().TotalLength()
+
+	c.Progress = currentProgress
+	c.Uploaded = uploadProgress
 }
 
 // ReadyForPlayback checks if the torrent is ready for playback or not.
 // We wait until 5% of the torrent to start playing.
 func (c Client) ReadyForPlayback() bool {
 	return c.percentage() > 5
-}
-
-// GetFile is an http handler to serve the biggest file managed by the client.
-func (c Client) GetFile(w http.ResponseWriter, r *http.Request) {
-	target := c.getLargestFile()
-	entry, err := NewFileReader(target)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer func() {
-		if err := entry.Close(); err != nil {
-			log.Printf("Error closing file reader: %s\n", err)
-		}
-	}()
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+c.Torrent.Info().Name+"\"")
-	http.ServeContent(w, r, target.DisplayPath(), time.Now(), entry)
 }
 
 // Render outputs the command line interface for the client.
