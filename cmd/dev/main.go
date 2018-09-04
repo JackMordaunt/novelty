@@ -29,7 +29,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("[server] error: %v", err)
 		}
-
 	}()
 	if !headless {
 		work.Add(1)

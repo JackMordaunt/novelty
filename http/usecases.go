@@ -37,6 +37,7 @@ func (ws *UseCases) ListenAndServe(addr string) error {
 }
 
 func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
+	fmt.Printf("openShow\n")
 	type Cmd struct {
 		Name string `json:"name"`
 		URI  string `json:"uri"`
@@ -82,7 +83,6 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 			})
 		}
 	}()
-
 }
 
 func (ws *UseCases) pushUpdates(s websocket.Sender, p websocket.Payload) {
