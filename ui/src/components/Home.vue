@@ -41,7 +41,7 @@
                     :rating="active.rating"
                     :cover="active.img"
                     :seasons="active.seasons"
-                    @watch-now="watch(active)"
+                    @watch-now="watch($event.episode)"
             />
         </div>
     </b-container>
@@ -52,7 +52,6 @@ import Vue from "vue"
 import Nav from "./Nav"
 import Tile from "./Tile"
 import Detail from "./detail/Detail"
-import axios from "axios"
 
 export default {
     data() {
@@ -64,6 +63,14 @@ export default {
     created() {
         // TODO use api call instead of mocked fake data.
         this.shows = generateShows()
+        this.$ws.on("show.opened", (msg) => {
+            // eslint-disable-next-line
+            console.log(`player opened: ${msg}`)
+        })
+        this.$ws.on("show.status", (msg) => {
+            // eslint-disable-next-line
+            console.log(`player status: ${JSON.stringify(msg)}`)
+        })
     },
     methods: {
         // TODO use api call instead of mocked fake data.
@@ -82,11 +89,14 @@ export default {
         closeDescription() {
             this.active = null
         },
-        watch(show) {
-            axios.post("http://localhost:8080/player/watch", show)
-                .catch(err => {
-                    alert(`attempting to watch ${show.name}: ${err}`)
-                })
+        watch(episode) {
+            // eslint-disable-next-line
+            console.log(episode)
+            this.$ws.send("show.open", {
+                name: episode.name,
+                uri: episode.uri,
+            })
+            // navigate to progress page. 
         }
     },
     components: {
@@ -119,7 +129,8 @@ const generateSeasons = () => {
                 name: `Episode ${kk}`,
                 runtime: Math.floor(Math.random() * 80 + 20),
                 synopsis:
-                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                uri: "magnet:?xt=urn:btih:9F2A3CE0F06668EFFFC0FD19596AC0910856B8E6&dn=bbb_sunflower_2160p_30fps_normal.mp4&tr=udp%3a%2f%2ftracker.openbittorrent.com%3a80%2fannounce&tr=udp%3a%2f%2ftracker.publicbt.com%3a80%2fannounce&ws=http%3a%2f%2fdistribution.bbb3d.renderfarming.net%2fvideo%2fmp4%2fbbb_sunflower_2160p_30fps_normal.mp4",
             })
         )
     }

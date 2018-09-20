@@ -29,7 +29,7 @@ func (ws *UseCases) ListenAndServe(addr string) error {
 		ws.Resources = NewResources()
 	}
 	wsRouter := websocket.NewRouter(nil)
-	wsRouter.Handle("player.open", ws.openShow)
+	wsRouter.Handle("show.open", ws.openShow)
 	router := mux.NewRouter()
 	router.Handle("/ws", wsRouter)
 	router.Handle("/stream/{file-name}", ws.Resources)
@@ -69,7 +69,7 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 		log.Fatalf("marshalling json: %v", err)
 	}
 	s.Send(websocket.Message{
-		Name: "player.opened",
+		Name: "show.opened",
 		Data: payload,
 	})
 	go func() {
@@ -84,7 +84,7 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 					panic(errors.Wrap(err, "marshalling status update"))
 				}
 				s.Send(websocket.Message{
-					Name: "player.status",
+					Name: "show.status",
 					Data: payload,
 				})
 			case <-closed:
