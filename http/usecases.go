@@ -41,7 +41,11 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 		Name string `json:"name"`
 		URI  string `json:"uri"`
 	}
-	var cmd Cmd
+	var (
+		cmd       Cmd
+		closed    chan struct{}
+		streamURL string
+	)
 	if err := p.Bind(&cmd); err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -50,8 +54,9 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 	r, err := ws.Engine.Open(show)
 	if err != nil {
 		log.Fatalf("%v", err)
+		return
 	}
-	closed := make(chan struct{})
+	closed = make(chan struct{})
 	ws.Resources.Store(show.Name, resource{
 		Resource: r,
 		closed: func() {
@@ -61,10 +66,10 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 	type Response struct {
 		StreamURL string `json:"stream_url"`
 	}
-	response := Response{
-		StreamURL: fmt.Sprintf("stream/%s", show.Name),
-	}
-	payload, err := json.Marshal(response)
+	streamURL = fmt.Sprintf("stream/%s", show.Name)
+	payload, err := json.Marshal(Response{
+		StreamURL: streamURL,
+	})
 	if err != nil {
 		log.Fatalf("marshalling json: %v", err)
 	}
