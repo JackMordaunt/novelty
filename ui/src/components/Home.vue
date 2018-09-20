@@ -63,14 +63,6 @@ export default {
     created() {
         // TODO use api call instead of mocked fake data.
         this.shows = generateShows()
-        this.$ws.on("show.opened", (msg) => {
-            // eslint-disable-next-line
-            console.log(`player opened: ${msg}`)
-        })
-        this.$ws.on("show.status", (msg) => {
-            // eslint-disable-next-line
-            console.log(`player status: ${JSON.stringify(msg)}`)
-        })
     },
     methods: {
         // TODO use api call instead of mocked fake data.
@@ -90,10 +82,11 @@ export default {
             this.active = null
         },
         watch(episode) {
-            this.$ws.send("show.open", {
-                name: episode.name,
-                uri: episode.uri,
-            })
+            // this.$ws.send("show.open", {
+            //     name: episode.name,
+            //     uri: episode.uri,
+            // })
+            // TODO: Mount Loading.vue component. 
         }
     },
     components: {
