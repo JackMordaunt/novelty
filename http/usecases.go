@@ -88,6 +88,7 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 					Data: payload,
 				})
 			case <-closed:
+				updates.Stop()
 				break
 			}
 		}
