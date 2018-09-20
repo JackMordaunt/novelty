@@ -51,13 +51,13 @@
 import Vue from "vue"
 import Nav from "./Nav"
 import Tile from "./Tile"
-import Detail from "./detail/Detail"
+import Detail from "./Detail"
 
 export default {
     data() {
         return {
             shows: [],
-            active: null
+            active: null,
         }
     },
     created() {
@@ -90,13 +90,10 @@ export default {
             this.active = null
         },
         watch(episode) {
-            // eslint-disable-next-line
-            console.log(episode)
             this.$ws.send("show.open", {
                 name: episode.name,
                 uri: episode.uri,
             })
-            // navigate to progress page. 
         }
     },
     components: {
@@ -215,6 +212,4 @@ const generateShows = () => {
     z-index: 100;
     opacity: 0.5 !important;
 }
-
-
 </style>

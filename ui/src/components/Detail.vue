@@ -79,8 +79,8 @@
 </template>
 
 <script>
-import Season from '../../models/Season'
-import Episode from '../../models/Episode'
+import Season from '../models/Season'
+import Episode from '../models/Episode'
 
 export default {
     props: {
@@ -126,7 +126,9 @@ export default {
             return this.activeEpisode === ii
         },
         watch() {
-            this.$emit("watch-now")
+            this.$emit("watch-now", {
+                episode: this.episode,
+            })
         }
     }
 }
