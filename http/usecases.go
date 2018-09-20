@@ -47,11 +47,18 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 		log.Fatalf("%v", err)
 	}
 	show := novelty.Show(cmd)
-	resource, err := ws.Engine.Open(show)
+	show.Name = format(show.Name)
+	r, err := ws.Engine.Open(show)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	ws.Resources.Store(show.Name, resource)
+	closed := make(chan struct{})
+	ws.Resources.Store(show.Name, resource{
+		Resource: r,
+		closed: func() {
+			close(closed)
+		},
+	})
 	type Response struct {
 		StreamURL string `json:"stream_url"`
 	}
@@ -68,9 +75,11 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 	})
 	go func() {
 		updates := time.NewTicker(time.Second * 1)
-		for range updates.C {
-			var status protocol.Status
-			resource.Status(&status)
+		for {
+			select {
+			case <-updates.C:
+				var status novelty.Status
+				r.Status(&status)
 			payload, err := json.Marshal(status)
 			if err != nil {
 				panic(errors.Wrap(err, "marshalling status update"))
@@ -81,10 +90,31 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 				Name: "show-status-update",
 				Data: payload,
 			})
+			case <-closed:
+				break
+			}
 		}
 	}()
 }
 
-func (ws *UseCases) pushUpdates(s websocket.Sender, p websocket.Payload) {
+// resource decorates the novelty.Resource with a close handler.
+// This allows us to respond to close events locally, in order to stop sending
+// status updates.
+type resource struct {
+	novelty.Resource
+	closed func()
+}
 
+func (r resource) Close() error {
+	if r.closed != nil {
+		r.closed()
+	}
+	return r.Resource.Close()
+}
+
+func format(name string) string {
+	name = strings.Replace(name, " ", "-", -1)
+	name = strings.Replace(name, "/", "", -1)
+	name = strings.Replace(name, `\`, "", -1)
+	return strings.ToLower(name)
 }
