@@ -23,6 +23,7 @@ func NewResources() *Resources {
 }
 
 func (h Resources) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	name, ok := mux.Vars(r)["file-name"]
 	if !ok {
 		fmt.Printf("expected show name in url\n")
