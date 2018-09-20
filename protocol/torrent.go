@@ -15,6 +15,7 @@ import (
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/iplist"
 	humanize "github.com/dustin/go-humanize"
+	"github.com/jackmordaunt/novelty"
 	"github.com/pkg/errors"
 )
 
@@ -156,7 +157,7 @@ func (c *Client) Seek(offset int64, whence int) (int64, error) {
 }
 
 // Status populates the status object with torrent stats.
-func (c *Client) Status(s *Status) {
+func (c *Client) Status(s *novelty.Status) {
 	if s == nil {
 		return
 	}
@@ -174,6 +175,7 @@ func (c *Client) Status(s *Status) {
 	s.Uploaded = uploadProgress
 	s.Throughput = downloadSpeed
 	s.Size = t.Info().TotalLength()
+	s.ReadyForPlayback = c.ReadyForPlayback()
 
 	c.Progress = currentProgress
 	c.Uploaded = uploadProgress
