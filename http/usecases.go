@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jackmordaunt/novelty"
-	"github.com/jackmordaunt/novelty/protocol"
 	"github.com/jackmordaunt/novelty/websocket"
 	"github.com/pkg/errors"
 )
@@ -29,7 +29,7 @@ func (ws *UseCases) ListenAndServe(addr string) error {
 		ws.Resources = NewResources()
 	}
 	wsRouter := websocket.NewRouter(nil)
-	wsRouter.Handle("open-show", ws.openShow)
+	wsRouter.Handle("player.open", ws.openShow)
 	router := mux.NewRouter()
 	router.Handle("/ws", wsRouter)
 	router.Handle("/stream/{file-name}", ws.Resources)
@@ -37,7 +37,6 @@ func (ws *UseCases) ListenAndServe(addr string) error {
 }
 
 func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
-	fmt.Printf("openShow\n")
 	type Cmd struct {
 		Name string `json:"name"`
 		URI  string `json:"uri"`
@@ -70,7 +69,7 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 		log.Fatalf("marshalling json: %v", err)
 	}
 	s.Send(websocket.Message{
-		Name: "show-opened",
+		Name: "player.opened",
 		Data: payload,
 	})
 	go func() {
@@ -80,16 +79,14 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 			case <-updates.C:
 				var status novelty.Status
 				r.Status(&status)
-			payload, err := json.Marshal(status)
-			if err != nil {
-				panic(errors.Wrap(err, "marshalling status update"))
-			}
-			// FIXME: When to stop pushing updates?
-			// - return a bool from Send `if ok := s.Send(..); !ok {...}`
-			s.Send(websocket.Message{
-				Name: "show-status-update",
-				Data: payload,
-			})
+				payload, err := json.Marshal(status)
+				if err != nil {
+					panic(errors.Wrap(err, "marshalling status update"))
+				}
+				s.Send(websocket.Message{
+					Name: "player.status",
+					Data: payload,
+				})
 			case <-closed:
 				break
 			}
