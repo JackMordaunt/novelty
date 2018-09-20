@@ -20,10 +20,11 @@ type Resource interface {
 
 // Status contains data about the current status of a streaming show.
 type Status struct {
-	Progress   int64  `json:"progress"`
-	Uploaded   int64  `json:"uploaded"`
-	Throughput string `json:"throughput"`
-	Size       int64  `json:"size"`
+	Progress         int64  `json:"progress"`
+	Uploaded         int64  `json:"uploaded"`
+	Throughput       string `json:"throughput"`
+	Size             int64  `json:"size"`
+	ReadyForPlayback bool   `json:"ready_for_playback"`
 }
 
 // Show contains the meta data for a TV Show episode or movie.
