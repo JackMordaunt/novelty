@@ -1,10 +1,8 @@
 package novelty
 
 import (
+	"fmt"
 	"io"
-
-	"github.com/jackmordaunt/novelty/protocol"
-	"github.com/pkg/errors"
 )
 
 // Resource represents the media file belonging to a Show.
@@ -17,11 +15,16 @@ type Resource interface {
 	io.Closer
 	// Status populates the Status object with the current status.
 	// A pointer is passed in to avoid object allocations.
-	Status(*protocol.Status)
+	Status(*Status)
 }
 
-// Status contains information about the status of a Resource.
-type Status struct{}
+// Status contains data about the current status of a streaming show.
+type Status struct {
+	Progress   int64  `json:"progress"`
+	Uploaded   int64  `json:"uploaded"`
+	Throughput string `json:"throughput"`
+	Size       int64  `json:"size"`
+}
 
 // Show contains the meta data for a TV Show episode or movie.
 type Show struct {
@@ -32,17 +35,26 @@ type Show struct {
 	URI string
 }
 
-// Engine provides the high level API.
-type Engine struct{}
+// ProtocolHandler creates a Resource from the Show using an appriate protocol
+// implementation, if registered.
+type ProtocolHandler func(s Show) (r Resource, ok bool)
 
-// Open the show's resource. This begins the download.
-func (e Engine) Open(s Show) (Resource, error) {
-	// FIXME: Let's just assume that URI is a magnet link for now.
-	cfg := protocol.NewClientConfig()
-	cfg.TorrentPath = s.URI
-	client, err := protocol.NewClient(cfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "opening torrent")
+// Engine provides the high level API.
+type Engine struct {
+	protocols []ProtocolHandler
+}
+
+// Register a function that handles a particular protocol.
+func (e *Engine) Register(ph ProtocolHandler) {
+	e.protocols = append(e.protocols, ph)
+}
+
+// Open the show's resource using a registered protocol handler.
+func (e *Engine) Open(s Show) (Resource, error) {
+	for _, ph := range e.protocols {
+		if resource, ok := ph(s); ok && resource != nil {
+			return resource, nil
+		}
 	}
-	return client, nil
+	return nil, fmt.Errorf("no valid handler registered for '%s'", s.URI)
 }
