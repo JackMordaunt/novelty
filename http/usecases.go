@@ -74,11 +74,16 @@ func (ws *UseCases) openShow(s websocket.Sender, p websocket.Payload) {
 	})
 	go func() {
 		updates := time.NewTicker(time.Second * 1)
+		playerOpened := false
 		for {
 			select {
 			case <-updates.C:
 				var status novelty.Status
 				r.Status(&status)
+				if status.ReadyForPlayback && !playerOpened {
+					novelty.OpenPlayer("vlc", 9090, streamURL)
+					playerOpened = true
+				}
 				payload, err := json.Marshal(status)
 				if err != nil {
 					panic(errors.Wrap(err, "marshalling status update"))
